@@ -1,0 +1,30 @@
+---
+description: 规范 MyBatis Plus 数据库持久化设计，标准化实体类、Mapper、事务与字段约束。
+globs: ["**/mapper/**/*.java", "**/domain/entity/**/*.java", "**/resources/mapper/**/*.xml"]
+alwaysApply: true
+---
+
+# 数据库持久化最佳实践
+
+## 1. 实体类规范 (Entity)
+- 必须使用 MyBatis Plus 注解（如 `@TableName`, `@TableId`, `@TableField`, `@TableLogic` 等）标明表结构与主键、逻辑删除等信息。
+- 实体类命名与数据库表一一对应，命名采用 `小驼峰` 对应 `snake_case`，避免歧义。
+- 主键 ID 统一采用 `String` 类型，使用雪花算法（或类似分布式 ID 方案）生成，避免 JS Number 精度丢失。
+- 必须包含基础审计字段：`create_time`、`update_time`，并使用相应注解（如 `@TableField(fill = FieldFill.INSERT)` 等）自动维护时间。
+- 必须包含逻辑删除字段 `is_deleted`，配置 `@TableLogic` 实现自动逻辑删除。
+
+## 2. Mapper 层操作规范
+- 严禁在 Mapper 层书写复杂业务逻辑，复杂查询/统计应在 Service 层组装，Mapper 只负责单表基础操作或必要的多表 SQL。
+- 编写 SQL 时优先使用 MyBatis Plus 的 Lambda 风格（如 `LambdaQueryWrapper`）保证类型安全和可维护性。
+- 必须保证所有增删改查操作均自动处理逻辑删除及审计字段。
+
+## 3. XML 映射文件规范
+- XML 文件需与对应 Mapper interface 命名一致，路径规范为 `resources/mapper/实体名Mapper.xml`。
+- SQL 需易于维护、禁止写难以理解的复杂嵌套，复杂逻辑建议切分为多个语句或移交 Service 处理。
+- 所有自定义 SQL 必须手动排除已逻辑删除的数据（`is_deleted = 0`）。
+
+## 4. 事务管理
+- 涉及多表数据变更、业务状态流转等操作，Service 层方法必须加 `@Transactional` 注解，确保原子性与一致性。
+- 禁止在 Mapper 层使用事务注解或手动控制事务。
+
+> 违反本规范的数据库相关代码将被拒绝合并。所有成员需严格对齐标准，确保数据一致性与可维护性。

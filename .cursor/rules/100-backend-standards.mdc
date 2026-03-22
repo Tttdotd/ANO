@@ -1,0 +1,39 @@
+---
+description: Java 后端开发最佳实践，统一设计模式、Spring 组件、异常处理，提升代码可维护性和健壮性
+globs: ["src/main/java/**/*.java"]
+alwaysApply: true
+---
+
+# Java 后端开发规范
+
+> 本规范旨在约束主流 Java/Spring Boot 项目的后端代码风格与技术实践，提升可读性、维护性和项目一致性。务必结合全局架构规范（000-core-architecture.mdc）共同执行。
+
+## 1. 设计模式与结构原则
+
+- **组合优于继承**  
+  禁止设计复杂的 BaseService、BaseController 等基础父类。提倡通过接口与依赖注入组合复用功能，避免继承层级过深导致的耦合。
+- **依赖注入（DI）统一规范**  
+  仅允许构造器注入（Constructor Injection），严禁使用 `@Autowired` 字段注解和无参构造函数注入，保证依赖透明、易于测试与重构。
+- **不可变数据与传输对象规范**  
+  DTO/VO 等数据传输对象统一使用 Java `record` 定义，确保不可变性与线程安全，禁止手写 Getter/Setter Bean。
+
+## 2. Spring 组件与业务规范
+
+- **状态 & 行为约束**  
+  - 前端禁止直接操作领域模型的 `state`（状态）字段，只能通过后端业务方法暴露状态变更入口。
+  - 业务状态流转必须封装为 Service 层方法（Action），外部调用严格通过统一方法接口进行。
+
+## 3. 异常与校验处理
+
+- **异常传播规范**  
+  - 禁止在 Service 层使用 `try-catch` 人为捕捉并返回错误信息，所有校验和业务失败场景需统一抛出 `com.ano.common.exception.BusinessException` 及其子类，并由全局异常处理器（GlobalExceptionHandler）兜底。
+  - 所有接口响应必须使用统一响应结构（见 core 规范），严禁返回空对象或 null。
+
+## 4. 代码可读性与约束
+
+- **注释与文档**  
+  重点业务 Service/Public 方法必须配备 JavaDoc，描述参数、核心流程与异常说明。
+- **命名统一**  
+  方法、变量命名遵循业务语义和驼峰（camelCase）风格，禁止使用无意义动词（如 getData、updateTask），推荐语义明确（如 initiateIteration、markNoteAsDraft）。
+
+> 违反本规范的代码将无法通过 Code Review 或合入主干分支，请所有成员严格执行。

@@ -1,0 +1,39 @@
+---
+description: 统一并严控 API 接口设计及参数校验标准，确保接口一致性、安全性和可维护性。
+globs: ["**/controller/**/*.java", "**/domain/dto/**/*.java", "**/domain/vo/**/*.java"]
+alwaysApply: true
+---
+
+# API 契约与请求校验规范
+
+## 1. API 文档与路径严格一致
+
+- 必须严格遵循 `@ANO_api.md` 约定的 API 路径、HTTP 方法（GET/POST/PUT/DELETE 仅允规范组合）、参数结构及返回值结构。
+- 改动 API 必须同步维护 `@ANO_api.md`。
+- 所有接口入参、出参的字段及数据类型必须于文档完全一致。
+
+## 2. 参数与请求体校验
+
+- DTO 含所有请求字段，必须为 Java `record` 定义，禁止用普通 class。（参考 core 架构规则）
+- DTO 字段必须使用 `jakarta.validation.constraints` 相关注解（如 `@NotBlank`, `@Size`, `@Positive` 等）完善参数边界与必填校验。
+- Controller 方法（含 POST/PUT 的 request body 或 query param）参数必须标注 `@Valid`，且禁止手动 if-else 校验逻辑。
+- Controller 层禁止定义允许为 null 且无必要的字段，所有必填/可选性用校验注解和文档显式声明。
+- 复杂对象的嵌套字段，应配合 `@Valid` 实现递归校验。
+
+## 3. RESTful 设计规范
+
+- 资源路径一律采用复数形式，遵循 `/resources` 或 `/resources/{id}` 命名，如 `/tasks`、`/notes`。
+- HTTP 方法适配：  
+  - `GET`：查询资源（不允许变更）  
+  - `POST`：创建资源（请求体为 DTO）  
+  - `PUT`：整体资源替换或 Upsert（如保存草稿）  
+  - `PATCH`：部分字段更新  
+  - `DELETE`：删除资源（推荐逻辑删除，并返回结果状态）
+- 禁止在 Controller 层处理业务逻辑，参数校验不通过时应统一由全局异常处理器处理并返回标准错误响应。
+
+## 4. 响应结构规范
+
+- 所有 Controller 方法的返回类型必须为 `com.ano.common.result.Result<T>`，严禁返回裸对象、null 或非标准响应格式。
+- 出参 VO 必须仅暴露当前接口所需字段，禁止直接暴露 entity。
+
+> 违反本规范的接口设计与校验代码将被拒绝合并。请全员确保 API 一致性、文档同步和可维护性。
