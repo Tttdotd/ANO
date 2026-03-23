@@ -1,6 +1,5 @@
 ---
 description: ANO (Action-Note-Output) 核心业务思想与产品定位。
-globs: ["**/*.java", "**/service/**/*.java"]
 alwaysApply: true
 ---
 
@@ -22,7 +21,6 @@ alwaysApply: true
 | **2** | **Noted** | 保存/更新笔记 | **核心约束**：只有关联了 Note 内容，才能进入此状态。 |
 | **3** | **Done** | 提交产出链接 | **核心约束**：必须存在外部 Output URL，证明行动已产生实际结果。 |
 | **4** | **Archived** | 手动归档 | **终态**：只有达到 Done 状态后，才允许执行归档操作。 |
-
 
 
 ## 3. 版本迭代哲学：Evolution (进化)

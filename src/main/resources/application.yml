@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: ANO
+  datasource:
+    url: jdbc:mysql://localhost:3306/ano_pkm?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: isDeleted
+      logic-not-delete-value: 0
+      logic-delete-value: 1
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+ano:
+  security:
+    dev-user-id: "1"

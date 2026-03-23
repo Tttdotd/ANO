@@ -1,5 +1,5 @@
 ---
-description: 全局核心架构规范，约定技术栈、项目结构与命名标准，确保全项目技术一致性和可维护性
+description: 全局核心架构规范，约定技术栈、项目结构，确保全项目技术一致性和可维护性
 alwaysApply: true
 ---
 
@@ -7,15 +7,15 @@ alwaysApply: true
 
 ## 1. 技术栈 (Tech Stack)
 - **JDK**: 25  
-  - *要求*：数据传输对象（DTO/VO）必须统一使用 `record` 语法进行定义。
 - **框架**: Spring Boot 3.5.12
 - **数据库**: MySQL 8.4（LTS）
 
 ## 2. 项目包结构 (Recommended Project Structure)
 严格遵循单一职责原则（SRP），分层规范如下：
 ```plaintext
-com.ano
+com.tdotd.ano
 ├── common                 // 公共模块：常量、工具类
+│   ├── constant           // 项目常量管理
 │   ├── exception          // 自定义异常定义
 │   ├── result             // 统一响应 Result 包装类, 包括基本的响应结构（如状态码、消息、数据等）
 │   └── advice             // 全局异常处理器 (GlobalExceptionHandler)
@@ -31,13 +31,20 @@ com.ano
 └── infrastructure         // 基础设施层：外部 API 调用、第三方 SDK 集成
 ```
 
-## 3. 命名规范 (Naming Conventions)
-- **Java**：所有类与方法命名统一使用 `camelCase`（小驼峰），接口类名前不加 `I` 前缀。
-- **MySQL**：所有数据库表、字段、索引、约束命名均使用 `snake_case`（下划线命名，全部小写）。
-- **Service 层方法**：命名必须表达业务语义，避免简单无意义的动词。如用 `initiateIteration()` （明确业务动作）代替 `updateTask()` 等通用方法名。
+## 3. 异常与校验处理
+
+- **异常传播规范**  
+  - 禁止在 Service 层使用 `try-catch` 人为捕捉并返回错误信息，所有校验和业务失败场景需统一抛出 `com.ano.common.exception.BusinessException` 及其子类，并由全局异常处理器（GlobalExceptionHandler）兜底。
+  - 所有接口响应必须使用统一响应结构（见 core 规范），严禁返回空对象或 null。
+
 
 ## 4. 统一响应规范 (Unified API Response)
 - 所有 Controller 层接口方法必须返回 `com.ano.common.result.Result<T>` 类型的响应对象，不允许返回裸数据或其他自定义格式。
 - 统一响应对象应包含：状态码、消息、实际数据三个字段，禁止在 Controller 层返回 null 或空对象。
+
+## 5. 命名规范 (Naming Conventions)
+- **Java**：所有类与方法命名统一使用 `camelCase`（小驼峰），接口类名前不加 `I` 前缀。
+- **MySQL**：所有数据库表、字段、索引、约束命名均使用 `snake_case`（下划线命名，全部小写）。
+- **Service 层方法**：命名必须表达业务语义，避免简单无意义的动词。如用 `initiateIteration()` （明确业务动作）代替 `updateTask()` 等通用方法名。
 
 > 本规范为本项目所有成员的强制遵循项，任何 PR 不得违反上述约束。

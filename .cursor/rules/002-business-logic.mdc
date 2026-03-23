@@ -1,0 +1,38 @@
+---
+description: ANO 业务逻辑规范，约束 Service 层状态机、事务和语义化动作
+globs: ["src/main/java/**/service/**/*.java"]
+alwaysApply: false
+---
+
+# ANO Service 业务逻辑规范
+
+## 1. 先校验再变更（Guard First）
+- Service 方法必须先校验资源存在性、归属权与前置条件，再执行数据库写操作。
+- 禁止“先写后判错”的流程；前置条件不满足时必须抛出 `BusinessException`。
+
+## 2. 状态机严格受控（Action 驱动）
+- `state` 只能通过语义化业务动作改变，禁止暴露通用 `updateState(int)` 风格方法。
+  - 提交note的修改或创建output时, 需要同时修改关联任务的状态.
+- 必须遵循 ANO 状态约束：`Todo(0) -> Doing(1) -> Noted(2) -> Done(3) -> Archived(4)`。
+  - 在创建笔记时, 将关联task的状态从`Todo(0)`推向`Doing(1)`
+  - 在提交笔记时, 也就是将笔记状态从0修改为1时, 将task从`Doing(1)`推向`Noted(2)`, 此时要严格检查`content`字段是否有内容, 如果为空, 则禁止提交, task无法从`Doing(1)`推向`Noted(2)`
+  - 在创建输出时, 将task从`Noted(2)`推向`Done(3)`, 此时要严格遵守状态机约束, 在进行url验证前, 需要检查task是否已经是`Noted(2)`状态, 严禁从`< Noted(2)`的状态直接跳转到`Done(3)`
+- 进入 `Noted` 前必须存在有效 Note 内容；进入 `Done` 前必须存在有效 Output URL。
+
+## 3. 迭代而非覆盖（Evolution）
+- 任务目标发生本质变化时，不允许覆盖旧任务；必须创建新版本并维护：
+  - `parent_id` 指向旧任务；
+  - `version` 递增；
+  - `iteration_note` 记录迭代动机。
+
+## 4. 事务边界清晰（Transactional Boundary）
+- 涉及多表写入或状态流转的方法必须使用 `@Transactional(rollbackFor = Exception.class)`。
+- 单表纯查询不得加事务；读写混合逻辑应拆分为“查询校验 + 事务写入”。
+
+## 5. 语义化命名与返回契约
+- Service 方法名必须表达业务意图：如 `createTask`、`markTaskDone`、`initiateIteration`。
+- 返回值需与 API 契约一致：创建类方法返回 VO/ID，查询返回 VO，失败统一抛 `BusinessException`。
+
+## 6. 防御性与可观测性
+- 对外部输入做边界校验（空值、长度、枚举范围、ID 合法性），避免脏数据入库。
+- 报错信息需可指导用户下一步动作，例如“请先完成思考笔记，再提交产出链接”。
