@@ -1,0 +1,64 @@
+---
+description: Service 层 DB 调用性能与代码冗余防控规范，基于项目迭代中发现的真实问题提炼而成，作为 100-backend-standards 的细化补充。
+globs:
+  - "src/main/java/**/service/**/*.java"
+alwaysApply: false
+---
+
+# Service 层性能与冗余防控规范
+
+> 本规范由项目迭代中发现的真实代码缺陷提炼而来，是 `100-backend-standards.mdc` 在 Service 层 DB 调用方面的专项细化。
+
+## 1. 禁止跨调用链重复 SELECT（双重查询）
+
+当 Service A 已完成对某条记录的归属权/存在性校验（即已执行过一次 SELECT），其所调用的 Service B 内部方法**禁止**对同一记录再次 SELECT。
+
+- **错误模式**：`NoteServiceImpl` 调用 `ownershipGuard.requireOwnedTask`（SELECT）→ 再调 `taskService.promoteTaskToDoing` → 后者内部又调 `ownershipGuard.requireOwnedTask`（第二次 SELECT 同一行）。
+- **正确模式**：状态变更方法只接收已验证的 `taskId`，通过条件化 UPDATE 保证幂等：
+  ```java
+  taskMapper.update(patch, new LambdaUpdateWrapper<Task>()
+      .eq(Task::getId, taskId)
+      .eq(Task::getState, TaskStates.TODO)); // 前置状态作为乐观条件，无需额外 SELECT
+  ```
+
+## 2. 精确列更新，禁止全字段 UPDATE
+
+仅修改部分字段时，**必须**使用 `LambdaUpdateWrapper` 指定目标列，**禁止**使用 `updateById(entity)` 执行全字段覆盖。
+
+- 全字段 UPDATE 会写入所有列（含未变更的字段），增加网络传输量，且在并发场景下可能覆盖其他字段的合法变更。
+- 推荐模式：
+  ```java
+  // 只更新 state 字段，其余字段由 MetaObjectHandler 自动维护 update_time
+  Task patch = new Task();
+  patch.setState(TaskStates.DOING);
+  taskMapper.update(patch, new LambdaUpdateWrapper<Task>().eq(Task::getId, taskId));
+  ```
+
+## 3. null 判断必须与 DB Schema 对齐
+
+生成防御性 null 校验前，必须先核对 `docs/db/schema.sql` 中对应列的约束：
+
+- 若字段定义为 `NOT NULL`，Service 层**禁止**对其生成 null 判断分支，否则产生永远不可达的死代码。
+- 若字段允许 NULL，则必须在 Service 层显式校验，不可依赖调用方的隐式保证。
+
+## 4. 跨 Service 公共逻辑必须提取为组件
+
+同一逻辑在两个及以上 Service 实现中以私有方法形式重复出现时，**必须**提取为独立的 `@Component`（参考 `TaskOwnershipGuard`）。
+
+- 生成新 Service 实现前，先检查 `service/` 包下已有的 Guard/Helper 组件能否复用。
+- 私有方法允许在单个 Service 内用于拆分复杂逻辑，但**禁止**跨 Service 复制粘贴。
+
+## 5. Entity → VO 映射统一使用 MapStruct
+
+所有 Entity 到 VO 的字段映射**必须**通过 `domain/converter/` 包下的 MapStruct Converter 完成，**禁止**在 Service 方法内手写字段赋值。
+
+- 字段名与类型完全一致时，无需额外 `@Mapping` 注解，MapStruct 自动处理。
+- 仅在字段名不一致或需要类型转换时，才添加显式 `@Mapping` 配置。
+- DTO → Entity 中涉及运行时注入值（如 `userId`、`state` 初始值）的部分不受此约束，仍在 Service 层手动 set。
+
+## 6. `@Transactional` 仅用于多语句原子操作
+
+- **必须加**：一个业务动作涉及多条 SQL（如 INSERT + UPDATE、跨表状态变更）且需要原子性时。
+- **禁止加**：方法内只执行单条 SQL 时，单条 SQL 本身具有原子性，事务注解只会引入 AOP 代理开销和数据库连接占用。
+
+> 违反本规范的代码将在 Code Review 时被要求修改。

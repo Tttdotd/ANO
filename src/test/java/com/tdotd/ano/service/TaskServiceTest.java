@@ -1,14 +1,11 @@
 package com.tdotd.ano.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
-import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
-import com.tdotd.ano.domain.entity.Note;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
-import com.tdotd.ano.mapper.NoteMapper;
 import com.tdotd.ano.mapper.TaskMapper;
 import com.tdotd.ano.service.impl.TaskServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +22,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * TaskServiceImpl 单元测试：所有外部依赖均 Mock，专注于方法内部逻辑分支。
+ * promoteTask* 方法不再调用 ownershipGuard，改为直接执行条件化 UPDATE，
+ * 此处仅验证传入 taskMapper.update() 的实体状态字段是否正确。
  */
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
@@ -33,13 +32,7 @@ class TaskServiceTest {
     private TaskMapper taskMapper;
 
     @Mock
-    private NoteMapper noteMapper;
-
-    @Mock
     private UserIdProvider userIdProvider;
-
-    @Mock
-    private TaskOwnershipGuard ownershipGuard;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -70,169 +63,50 @@ class TaskServiceTest {
 
     // ─────────────────── promoteTaskToDoing ───────────────────
 
+    /**
+     * 验证 promoteTaskToDoing 向 taskMapper.update 传入的实体已将 state 设置为 DOING(1)。
+     * 实际状态条件约束由 LambdaUpdateWrapper 携带，由数据库层保证原子性。
+     */
     @Test
-    void promoteTaskToDoing_shouldSetStateToDoing() {
-        Task task = makeTask("t-1", "user-1", TaskStates.TODO);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
+    @SuppressWarnings("unchecked")
+    void promoteTaskToDoing_shouldCallUpdateWithDoingState() {
         taskService.promoteTaskToDoing("t-1");
 
-        assertEquals(TaskStates.DOING, task.getState());
-        verify(taskMapper).updateById(task);
-    }
+        ArgumentCaptor<Task> entityCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskMapper).update(entityCaptor.capture(), any(LambdaUpdateWrapper.class));
 
-    @Test
-    void promoteTaskToDoing_whenAlreadyDoing_shouldBeIdempotent() {
-        Task task = makeTask("t-1", "user-1", TaskStates.DOING);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        taskService.promoteTaskToDoing("t-1");
-
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToDoing_whenAlreadyNoted_shouldBeIdempotent() {
-        Task task = makeTask("t-1", "user-1", TaskStates.NOTED);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        taskService.promoteTaskToDoing("t-1");
-
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToDoing_whenTaskNotFound_shouldThrow() {
-        when(ownershipGuard.requireOwnedTask("ghost")).thenThrow(new BusinessException("任务不存在"));
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToDoing("ghost"));
-    }
-
-    @Test
-    void promoteTaskToDoing_whenNotOwner_shouldThrow() {
-        when(ownershipGuard.requireOwnedTask("t-1")).thenThrow(new BusinessException("无权操作该任务"));
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToDoing("t-1"));
-        verify(taskMapper, never()).updateById(any(Task.class));
+        assertEquals(TaskStates.DOING, entityCaptor.getValue().getState());
     }
 
     // ─────────────────── promoteTaskToNoted ───────────────────
 
+    /**
+     * 验证 promoteTaskToNoted 向 taskMapper.update 传入的实体已将 state 设置为 NOTED(2)。
+     */
     @Test
-    void promoteTaskToNoted_shouldSetStateToNoted() {
-        Task task = makeTask("t-1", "user-1", TaskStates.TODO);
-        Note note = makeNote("t-1", "有效的思考内容");
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-        when(noteMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(note);
-
+    @SuppressWarnings("unchecked")
+    void promoteTaskToNoted_shouldCallUpdateWithNotedState() {
         taskService.promoteTaskToNoted("t-1");
 
-        assertEquals(TaskStates.NOTED, task.getState());
-        verify(taskMapper).updateById(task);
-    }
+        ArgumentCaptor<Task> entityCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskMapper).update(entityCaptor.capture(), any(LambdaUpdateWrapper.class));
 
-    @Test
-    void promoteTaskToNoted_whenAlreadyDone_shouldNotChangeState() {
-        Task task = makeTask("t-1", "user-1", TaskStates.DONE);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        taskService.promoteTaskToNoted("t-1");
-
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToNoted_whenNoteIsNull_shouldThrow() {
-        Task task = makeTask("t-1", "user-1", TaskStates.TODO);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-        when(noteMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToNoted("t-1"));
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToNoted_whenNoteContentBlank_shouldThrow() {
-        Task task = makeTask("t-1", "user-1", TaskStates.TODO);
-        Note note = makeNote("t-1", "   ");
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-        when(noteMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(note);
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToNoted("t-1"));
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToNoted_whenTaskNotFound_shouldThrow() {
-        when(ownershipGuard.requireOwnedTask("ghost")).thenThrow(new BusinessException("任务不存在"));
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToNoted("ghost"));
+        assertEquals(TaskStates.NOTED, entityCaptor.getValue().getState());
     }
 
     // ─────────────────── promoteTaskToDone ───────────────────
 
+    /**
+     * 验证 promoteTaskToDone 向 taskMapper.update 传入的实体已将 state 设置为 DONE(3)。
+     */
     @Test
-    void promoteTaskToDone_shouldSetStateToDone() {
-        Task task = makeTask("t-1", "user-1", TaskStates.NOTED);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
+    @SuppressWarnings("unchecked")
+    void promoteTaskToDone_shouldCallUpdateWithDoneState() {
         taskService.promoteTaskToDone("t-1");
 
-        assertEquals(TaskStates.DONE, task.getState());
-        verify(taskMapper).updateById(task);
-    }
+        ArgumentCaptor<Task> entityCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskMapper).update(entityCaptor.capture(), any(LambdaUpdateWrapper.class));
 
-    @Test
-    void promoteTaskToDone_whenAlreadyDone_shouldBeIdempotent() {
-        Task task = makeTask("t-1", "user-1", TaskStates.DONE);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        taskService.promoteTaskToDone("t-1");
-
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToDone_whenArchived_shouldBeIdempotent() {
-        Task task = makeTask("t-1", "user-1", TaskStates.ARCHIVED);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        taskService.promoteTaskToDone("t-1");
-
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToDone_whenTaskNotNoted_shouldThrow() {
-        Task task = makeTask("t-1", "user-1", TaskStates.DOING);
-        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(task);
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToDone("t-1"));
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    @Test
-    void promoteTaskToDone_whenNotOwner_shouldThrow() {
-        when(ownershipGuard.requireOwnedTask("t-1")).thenThrow(new BusinessException("无权操作该任务"));
-
-        assertThrows(BusinessException.class, () -> taskService.promoteTaskToDone("t-1"));
-        verify(taskMapper, never()).updateById(any(Task.class));
-    }
-
-    // ─────────────────── 工具方法 ───────────────────
-
-    private Task makeTask(String id, String userId, int state) {
-        Task t = new Task();
-        t.setId(id);
-        t.setUserId(userId);
-        t.setState(state);
-        return t;
-    }
-
-    private Note makeNote(String taskId, String content) {
-        Note n = new Note();
-        n.setTaskId(taskId);
-        n.setContent(content);
-        return n;
+        assertEquals(TaskStates.DONE, entityCaptor.getValue().getState());
     }
 }

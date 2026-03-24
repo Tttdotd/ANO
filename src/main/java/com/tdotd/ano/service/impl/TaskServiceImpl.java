@@ -1,20 +1,17 @@
 package com.tdotd.ano.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
-import com.tdotd.ano.common.exception.BusinessException;
+import com.tdotd.ano.domain.converter.TaskConverter;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
-import com.tdotd.ano.domain.entity.Note;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
-import com.tdotd.ano.mapper.NoteMapper;
 import com.tdotd.ano.mapper.TaskMapper;
-import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -23,19 +20,11 @@ import java.util.List;
 public class TaskServiceImpl implements TaskService {
 
     private final TaskMapper taskMapper;
-    private final NoteMapper noteMapper;
     private final UserIdProvider userIdProvider;
-    private final TaskOwnershipGuard ownershipGuard;
 
-    public TaskServiceImpl(
-            TaskMapper taskMapper,
-            NoteMapper noteMapper,
-            UserIdProvider userIdProvider,
-            TaskOwnershipGuard ownershipGuard) {
+    public TaskServiceImpl(TaskMapper taskMapper, UserIdProvider userIdProvider) {
         this.taskMapper = taskMapper;
-        this.noteMapper = noteMapper;
         this.userIdProvider = userIdProvider;
-        this.ownershipGuard = ownershipGuard;
     }
 
     @Override
@@ -47,7 +36,7 @@ public class TaskServiceImpl implements TaskService {
         task.setState(TaskStates.TODO);
         task.setVersion(1);
         taskMapper.insert(task);
-        return new TaskCreateVo(task.getId(), task.getTitle(), task.getState(), task.getCreateTime());
+        return TaskConverter.INSTANCE.toCreateVo(task);
     }
 
     @Override
@@ -64,60 +53,44 @@ public class TaskServiceImpl implements TaskService {
              .lt(Task::getCreateTime, date.plusDays(1).atStartOfDay());
         }
         return taskMapper.selectList(w).stream()
-                .map(t -> new TaskDisplayVo(
-                        t.getId(),
-                        t.getTitle(),
-                        t.getDescription(),
-                        t.getState(),
-                        t.getVersion(),
-                        t.getCreateTime()))
+                .map(TaskConverter.INSTANCE::toDisplayVo)
                 .toList();
     }
 
+    /**
+     * 幂等：仅当 task 处于 Todo(0) 时推进，否则静默跳过。
+     * 调用方（NoteServiceImpl）已完成归属权校验，此处无需重复 SELECT。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void promoteTaskToDoing(String taskId) {
-        Task task = ownershipGuard.requireOwnedTask(taskId);
-        Integer s = task.getState();
-        if (s != null && s >= TaskStates.DOING) {
-            return;
-        }
-        task.setState(TaskStates.DOING);
-        taskMapper.updateById(task);
+        Task update = new Task();
+        update.setState(TaskStates.DOING);
+        taskMapper.update(update, new LambdaUpdateWrapper<Task>()
+                .eq(Task::getId, taskId)
+                .eq(Task::getState, TaskStates.TODO));
     }
 
+    /**
+     * 幂等：仅当 task 处于 Doing(1) 时推进，否则静默跳过。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void promoteTaskToNoted(String taskId) {
-        Task task = ownershipGuard.requireOwnedTask(taskId);
-        Integer s = task.getState();
-        if (s != null && s >= TaskStates.DONE) {
-            return;
-        }
-        Note note = noteMapper.selectOne(new LambdaQueryWrapper<Note>().eq(Note::getTaskId, taskId));
-        if (note == null) {
-            throw new BusinessException("请先创建笔记，再沉淀思考内容");
-        }
-        String content = note.getContent();
-        if (content == null || content.isBlank()) {
-            throw new BusinessException("请先填写有效的思考笔记内容，再进入已沉淀状态");
-        }
-        task.setState(TaskStates.NOTED);
-        taskMapper.updateById(task);
+        Task update = new Task();
+        update.setState(TaskStates.NOTED);
+        taskMapper.update(update, new LambdaUpdateWrapper<Task>()
+                .eq(Task::getId, taskId)
+                .eq(Task::getState, TaskStates.DOING));
     }
 
+    /**
+     * 幂等：仅当 task 处于 Noted(2) 时推进，否则静默跳过。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void promoteTaskToDone(String taskId) {
-        Task task = ownershipGuard.requireOwnedTask(taskId);
-        Integer s = task.getState();
-        if (s != null && s >= TaskStates.DONE) {
-            return;
-        }
-        if (s == null || s < TaskStates.NOTED) {
-            throw new BusinessException("请先完成思考笔记沉淀，再提交产出链接");
-        }
-        task.setState(TaskStates.DONE);
-        taskMapper.updateById(task);
+        Task update = new Task();
+        update.setState(TaskStates.DONE);
+        taskMapper.update(update, new LambdaUpdateWrapper<Task>()
+                .eq(Task::getId, taskId)
+                .eq(Task::getState, TaskStates.NOTED));
     }
 }

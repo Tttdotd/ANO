@@ -3,6 +3,7 @@ package com.tdotd.ano.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tdotd.ano.common.constant.NoteStates;
 import com.tdotd.ano.common.exception.BusinessException;
+import com.tdotd.ano.domain.converter.NoteConverter;
 import com.tdotd.ano.domain.dto.NoteCreateDto;
 import com.tdotd.ano.domain.dto.NoteUpdateDto;
 import com.tdotd.ano.domain.entity.Note;
@@ -44,7 +45,7 @@ public class NoteServiceImpl implements NoteService {
         note.setState(NoteStates.DRAFT);
         noteMapper.insert(note);
         taskService.promoteTaskToDoing(dto.taskId());
-        return new NoteDisplayVo(note.getId(), note.getContent(), note.getTaskId(), note.getState());
+        return NoteConverter.INSTANCE.toDisplayVo(note);
     }
 
     @Override
@@ -54,7 +55,7 @@ public class NoteServiceImpl implements NoteService {
         if (note == null) {
             throw new BusinessException("该任务下尚未创建笔记");
         }
-        return new NoteDisplayVo(note.getId(), note.getContent(), note.getTaskId(), note.getState());
+        return NoteConverter.INSTANCE.toDisplayVo(note);
     }
 
     @Override
@@ -76,7 +77,7 @@ public class NoteServiceImpl implements NoteService {
         note.setContent(content);
         note.setState(st);
         noteMapper.updateById(note);
-        if (st == NoteStates.DONE && content != null && !content.isBlank()) {
+        if (st == NoteStates.DONE) {
             taskService.promoteTaskToNoted(note.getTaskId());
         }
         return note.getId();

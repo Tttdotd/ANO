@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tdotd.ano.common.constant.OutputStates;
 import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
+import com.tdotd.ano.domain.converter.OutputConverter;
 import com.tdotd.ano.domain.dto.OutputCreateDto;
 import com.tdotd.ano.domain.entity.Output;
 import com.tdotd.ano.domain.entity.Task;
@@ -37,7 +38,7 @@ public class OutputServiceImpl implements OutputService {
     @Transactional(rollbackFor = Exception.class)
     public String createOutput(OutputCreateDto dto) {
         Task task = ownershipGuard.requireOwnedTask(dto.taskId());
-        if (task.getState() == null || task.getState() < TaskStates.NOTED) {
+        if (task.getState() < TaskStates.NOTED) {
             throw new BusinessException("请先完成思考笔记沉淀，再提交产出链接");
         }
         String url = dto.url().trim();
@@ -72,6 +73,6 @@ public class OutputServiceImpl implements OutputService {
             throw new BusinessException("暂无产出记录");
         }
         Output o = list.get(0);
-        return new OutputVo(o.getId(), o.getUrl(), o.getState(), o.getPlatform());
+        return OutputConverter.INSTANCE.toVo(o);
     }
 }
