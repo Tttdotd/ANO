@@ -6,9 +6,14 @@ alwaysApply: true
 # 全局核心架构规范 (Core Architecture Rules)
 
 ## 1. 技术栈 (Tech Stack)
-- **JDK**: 25  
-- **框架**: Spring Boot 3.5.12
-- **数据库**: MySQL 8.4（LTS）
+- **JDK**：作为项目的基础 Java 运行环境。
+- **Spring Boot**：现代 Java Web 应用的主流开发框架，提供自动配置和约定优于配置的开发体验。
+- **MyBatis Plus**：简化数据库持久层开发的 ORM 框架，提升 CRUD 效率。
+- **MySQL**：主流关系型数据库，作为数据存储核心。
+- **H2**：轻量级内存数据库，常用于开发与测试。
+- **Lombok**：用于简化 Java 类代码，减少样板代码编写。
+- **MapStruct**：实现对象间属性映射的编译期代码生成工具。
+
 
 ## 2. 项目包结构 (Recommended Project Structure)
 严格遵循单一职责原则（SRP），分层规范如下：
