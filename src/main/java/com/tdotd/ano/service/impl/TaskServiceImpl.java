@@ -15,6 +15,7 @@ import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
 import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class TaskServiceImpl implements TaskService {
 
@@ -47,6 +49,7 @@ public class TaskServiceImpl implements TaskService {
         task.setState(TaskStates.TODO);
         task.setVersion(1);
         taskMapper.insert(task);
+        log.info("task created: taskId={}, userId={}", task.getId(), task.getUserId());
         return TaskConverter.INSTANCE.toCreateVo(task);
     }
 
@@ -110,11 +113,13 @@ public class TaskServiceImpl implements TaskService {
     public String reviseTask(TaskUpdateDto dto) {
         Task task = ownershipGuard.requireOwnedTask(dto.id());
         if (task.getState() == TaskStates.ARCHIVED) {
+            log.warn("task revise rejected(archived): taskId={}", dto.id());
             throw new BusinessException("已归档任务不可修改");
         }
         task.setTitle(dto.title());
         task.setDescription(dto.description());
         taskMapper.updateById(task);
+        log.info("task revised: taskId={}", task.getId());
         return task.getId();
     }
 
@@ -123,11 +128,13 @@ public class TaskServiceImpl implements TaskService {
     public String archiveTask(TaskArchiveDto dto) {
         Task task = ownershipGuard.requireOwnedTask(dto.id());
         if (task.getState() == TaskStates.ARCHIVED) {
+            log.warn("task archive skipped(idempotent): taskId={}", task.getId());
             return task.getId();
         }
         task.setState(TaskStates.ARCHIVED);
         task.setArchivedTime(LocalDateTime.now());
         taskMapper.updateById(task);
+        log.info("task archived: taskId={}", task.getId());
         return task.getId();
     }
 }

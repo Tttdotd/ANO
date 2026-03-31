@@ -4,12 +4,14 @@ import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
  * 任务归属校验组件：确认任务存在且属于当前用户。
  * 消除 Service 层中重复的 requireOwnedTask 私有方法。
  */
+@Slf4j
 @Component
 public class TaskOwnershipGuard {
 

@@ -14,11 +14,13 @@ import com.tdotd.ano.mapper.OutputMapper;
 import com.tdotd.ano.service.OutputService;
 import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class OutputServiceImpl implements OutputService {
 
@@ -55,6 +57,7 @@ public class OutputServiceImpl implements OutputService {
         out.setUrl(url);
         out.setState(OutputStates.VALID);
         outputMapper.insert(out);
+        log.info("output created: outputId={}, taskId={}", out.getId(), dto.taskId());
         taskService.promoteTaskToDone(dto.taskId());
         return out.getId();
     }
@@ -98,6 +101,7 @@ public class OutputServiceImpl implements OutputService {
         output.setPlatform(dto.platform());
         output.setUrl(url);
         outputMapper.updateById(output);
+        log.info("output revised: outputId={}, taskId={}", output.getId(), output.getTaskId());
         return output.getId();
     }
 }

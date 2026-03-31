@@ -14,9 +14,11 @@ import com.tdotd.ano.mapper.NoteMapper;
 import com.tdotd.ano.service.NoteService;
 import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class NoteServiceImpl implements NoteService {
 
@@ -49,6 +51,7 @@ public class NoteServiceImpl implements NoteService {
         note.setContent("");
         note.setState(NoteStates.DRAFT);
         noteMapper.insert(note);
+        log.info("note created: noteId={}, taskId={}", note.getId(), dto.taskId());
         taskService.promoteTaskToDoing(dto.taskId());
         return NoteConverter.INSTANCE.toDisplayVo(note);
     }
@@ -88,6 +91,7 @@ public class NoteServiceImpl implements NoteService {
         note.setContent(content);
         note.setState(st);
         noteMapper.updateById(note);
+        log.info("note revised: noteId={}, state={}", note.getId(), st);
         if (st == NoteStates.DONE) {
             taskService.promoteTaskToNoted(note.getTaskId());
         }

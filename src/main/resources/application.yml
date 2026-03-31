@@ -12,7 +12,7 @@ spring:
       port: 6379
       lettuce:
         pool:
-          max-active:8
+          max-active: 8
 
 mybatis-plus:
   configuration:
