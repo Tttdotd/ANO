@@ -2,7 +2,10 @@ package com.tdotd.ano.service;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
+import com.tdotd.ano.common.exception.BusinessException;
+import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
+import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
@@ -33,6 +36,9 @@ class TaskServiceTest {
 
     @Mock
     private UserIdProvider userIdProvider;
+
+    @Mock
+    private TaskOwnershipGuard ownershipGuard;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -108,5 +114,66 @@ class TaskServiceTest {
         verify(taskMapper).update(entityCaptor.capture(), any(LambdaUpdateWrapper.class));
 
         assertEquals(TaskStates.DONE, entityCaptor.getValue().getState());
+    }
+
+    // ─────────────────── reviseTask ───────────────────
+
+    @Test
+    void reviseTask_shouldUpdateTitleAndDescription() {
+        Task owned = new Task();
+        owned.setId("t-1");
+        owned.setState(TaskStates.DOING);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(owned);
+
+        String id = taskService.reviseTask(new TaskUpdateDto("t-1", "新标题", "新描述"));
+
+        assertEquals("t-1", id);
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskMapper).updateById(captor.capture());
+        assertEquals("新标题", captor.getValue().getTitle());
+        assertEquals("新描述", captor.getValue().getDescription());
+    }
+
+    @Test
+    void reviseTask_whenArchived_shouldThrow() {
+        Task owned = new Task();
+        owned.setId("t-1");
+        owned.setState(TaskStates.ARCHIVED);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(owned);
+
+        assertThrows(BusinessException.class, () ->
+                taskService.reviseTask(new TaskUpdateDto("t-1", "x", "y")));
+        verify(taskMapper, never()).updateById(any(Task.class));
+    }
+
+    // ─────────────────── archiveTask ───────────────────
+
+    @Test
+    void archiveTask_shouldSetArchivedStateAndTime() {
+        Task owned = new Task();
+        owned.setId("t-1");
+        owned.setState(TaskStates.DONE);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(owned);
+
+        String id = taskService.archiveTask(new TaskArchiveDto("t-1"));
+
+        assertEquals("t-1", id);
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskMapper).updateById(captor.capture());
+        assertEquals(TaskStates.ARCHIVED, captor.getValue().getState());
+        assertNotNull(captor.getValue().getArchivedTime());
+    }
+
+    @Test
+    void archiveTask_whenAlreadyArchived_shouldReturnIdWithoutUpdate() {
+        Task owned = new Task();
+        owned.setId("t-1");
+        owned.setState(TaskStates.ARCHIVED);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(owned);
+
+        String id = taskService.archiveTask(new TaskArchiveDto("t-1"));
+
+        assertEquals("t-1", id);
+        verify(taskMapper, never()).updateById(any(Task.class));
     }
 }

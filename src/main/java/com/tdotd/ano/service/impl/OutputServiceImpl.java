@@ -6,6 +6,7 @@ import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.converter.OutputConverter;
 import com.tdotd.ano.domain.dto.OutputCreateDto;
+import com.tdotd.ano.domain.dto.OutputUpdateDto;
 import com.tdotd.ano.domain.entity.Output;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.OutputVo;
@@ -38,6 +39,9 @@ public class OutputServiceImpl implements OutputService {
     @Transactional(rollbackFor = Exception.class)
     public String createOutput(OutputCreateDto dto) {
         Task task = ownershipGuard.requireOwnedTask(dto.taskId());
+        if (task.getState() == TaskStates.ARCHIVED) {
+            throw new BusinessException("已归档任务不可创建产出");
+        }
         if (task.getState() < TaskStates.NOTED) {
             throw new BusinessException("请先完成思考笔记沉淀，再提交产出链接");
         }
@@ -74,5 +78,26 @@ public class OutputServiceImpl implements OutputService {
         }
         Output o = list.get(0);
         return OutputConverter.INSTANCE.toVo(o);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String reviseOutput(OutputUpdateDto dto) {
+        Output output = outputMapper.selectById(dto.id());
+        if (output == null) {
+            throw new BusinessException("产出不存在");
+        }
+        Task task = ownershipGuard.requireOwnedTask(output.getTaskId());
+        if (task.getState() == TaskStates.ARCHIVED) {
+            throw new BusinessException("已归档任务不可修改产出");
+        }
+        String url = dto.url().trim();
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            throw new BusinessException("产出链接需以 http:// 或 https:// 开头");
+        }
+        output.setPlatform(dto.platform());
+        output.setUrl(url);
+        outputMapper.updateById(output);
+        return output.getId();
     }
 }

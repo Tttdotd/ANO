@@ -1,7 +1,9 @@
 package com.tdotd.ano.controller;
 
 import com.tdotd.ano.common.result.Result;
+import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
+import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 import com.tdotd.ano.service.TaskService;
@@ -9,7 +11,9 @@ import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,5 +43,15 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) Integer state) {
         return Result.ok(taskService.listTasks(date, state));
+    }
+
+    @PatchMapping
+    public Result<String> revise(@Valid @RequestBody TaskUpdateDto dto) {
+        return Result.ok(taskService.reviseTask(dto));
+    }
+
+    @PutMapping
+    public Result<String> archive(@Valid @RequestBody TaskArchiveDto dto) {
+        return Result.ok(taskService.archiveTask(dto));
     }
 }

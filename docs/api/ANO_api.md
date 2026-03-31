@@ -39,8 +39,8 @@ POST /tasks
 
 ```json
 {
-  "title": "string",
-  "description": "string"
+  "title": "学习agent",
+  "description": "了解MCP"
 }
 ```
 
@@ -143,6 +143,108 @@ GET /tasks
 |»» state|integer|true|none||任务状态|
 |»» version|integer|true|none||版本号|
 |»» createTime|string|true|none||任务创建时间|
+|» message|string|true|none||none|
+
+## PATCH 修改任务
+
+PATCH /tasks
+
+修改任务的标题与描述。已归档任务不可调用本接口。
+
+> Body 请求参数
+
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string"
+}
+```
+
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|body|body|object| 是 |none|
+|» id|body|string| 是 |任务ID|
+|» title|body|string| 是 |任务主题|
+|» description|body|string| 是 |任务描述|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "code": 0,
+  "data": "string",
+  "message": "string"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» code|integer|true|none||none|
+|» data|string|true|none||任务id|
+|» message|string|true|none||none|
+
+## PUT 任务归档
+
+PUT /tasks
+
+任务归档, 将任务状态修改为ARCHIVED, 标志此任务正式加入知识库中, 不可进行任务修改 笔记修改 输出的修改等操作.
+
+> Body 请求参数
+
+```json
+{
+  "id": "string"
+}
+```
+
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|body|body|object| 是 |none|
+|» id|body|string| 是 |当前任务ID|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "code": 0,
+  "data": "string",
+  "message": "string"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» code|integer|true|none||none|
+|» data|string|true|none||none|
 |» message|string|true|none||none|
 
 ## POST 创建笔记
@@ -407,6 +509,59 @@ GET /outputs
 |»» platform|string|true|none||输出平台|
 |» message|string|true|none||none|
 
+## PUT 修改输出
+
+PUT /outputs
+
+修改输出的平台或url
+
+> Body 请求参数
+
+```json
+{
+  "id": "string",
+  "platform": "string",
+  "url": "string"
+}
+```
+
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|body|body|object| 是 |none|
+|» id|body|string| 是 |ID|
+|» platform|body|string| 是 |none|
+|» url|body|string| 是 |none|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "code": 0,
+  "data": "string",
+  "message": "string"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» code|integer|true|none||none|
+|» data|string|true|none||none|
+|» message|string|true|none||none|
+
 # 数据模型
 
 <h2 id="tocS_Result">Result</h2>
@@ -612,4 +767,52 @@ GET /outputs
 |url|string|true|none||输出url|
 |state|integer|true|none||输出状态|
 |platform|string|true|none||输出平台|
+
+<h2 id="tocS_TaskUpdateDTO">TaskUpdateDTO</h2>
+
+<a id="schemataskupdatedto"></a>
+<a id="schema_TaskUpdateDTO"></a>
+<a id="tocStaskupdatedto"></a>
+<a id="tocstaskupdatedto"></a>
+
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string"
+}
+
+```
+
+### 属性
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|id|string|true|none||ID|
+|title|string|true|none||任务主题|
+|description|string|true|none||任务描述|
+
+<h2 id="tocS_OutputUpdateDTO">OutputUpdateDTO</h2>
+
+<a id="schemaoutputupdatedto"></a>
+<a id="schema_OutputUpdateDTO"></a>
+<a id="tocSoutputupdatedto"></a>
+<a id="tocsoutputupdatedto"></a>
+
+```json
+{
+  "id": "string",
+  "platform": "string",
+  "url": "string"
+}
+
+```
+
+### 属性
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|id|string|true|none||ID|
+|platform|string|true|none||none|
+|url|string|true|none||none|
 

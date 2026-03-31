@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -96,5 +97,28 @@ class OutputControllerTest {
                 .andExpect(jsonPath("$.data.id").value("o-1"))
                 .andExpect(jsonPath("$.data.url").value("https://github.com/x"))
                 .andExpect(jsonPath("$.data.platform").value("github"));
+    }
+
+    @Test
+    void putOutput_withValidBody_shouldReturnCode0AndId() throws Exception {
+        when(outputService.reviseOutput(any())).thenReturn("o-1");
+
+        mockMvc.perform(put("/api/v1/outputs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("id", "o-1", "platform", "github", "url", "https://github.com/x"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").value("o-1"));
+    }
+
+    @Test
+    void putOutput_withMissingUrl_shouldReturnCode400() throws Exception {
+        mockMvc.perform(put("/api/v1/outputs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("id", "o-1", "platform", "github"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

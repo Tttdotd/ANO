@@ -5,6 +5,7 @@ import com.tdotd.ano.common.constant.OutputStates;
 import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.dto.OutputCreateDto;
+import com.tdotd.ano.domain.dto.OutputUpdateDto;
 import com.tdotd.ano.domain.entity.Output;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.OutputVo;
@@ -91,6 +92,15 @@ class OutputServiceTest {
     }
 
     @Test
+    void createOutput_whenTaskArchived_shouldThrow() {
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", TaskStates.ARCHIVED));
+
+        assertThrows(BusinessException.class, () ->
+                outputService.createOutput(new OutputCreateDto("t-1", "github", "https://x.com")));
+        verify(outputMapper, never()).insert(any(Output.class));
+    }
+
+    @Test
     void createOutput_whenTaskNotFound_shouldThrow() {
         when(ownershipGuard.requireOwnedTask("ghost")).thenThrow(new BusinessException("任务不存在"));
 
@@ -141,6 +151,54 @@ class OutputServiceTest {
     void getOutputByTask_whenTaskIdNull_shouldThrow() {
         assertThrows(BusinessException.class, () -> outputService.getOutputByTask(null));
         verify(ownershipGuard, never()).requireOwnedTask(any(String.class));
+    }
+
+    // ─────────────────── reviseOutput ───────────────────
+
+    @Test
+    void reviseOutput_shouldUpdatePlatformAndUrl() {
+        Output existing = makeOutput("o-1", "t-1", "https://old.com", "x");
+        when(outputMapper.selectById("o-1")).thenReturn(existing);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", TaskStates.DONE));
+
+        String id = outputService.reviseOutput(new OutputUpdateDto("o-1", "github", "https://new.com"));
+
+        assertEquals("o-1", id);
+        ArgumentCaptor<Output> captor = ArgumentCaptor.forClass(Output.class);
+        verify(outputMapper).updateById(captor.capture());
+        assertEquals("github", captor.getValue().getPlatform());
+        assertEquals("https://new.com", captor.getValue().getUrl());
+    }
+
+    @Test
+    void reviseOutput_whenOutputMissing_shouldThrow() {
+        when(outputMapper.selectById("o-x")).thenReturn(null);
+
+        assertThrows(BusinessException.class, () ->
+                outputService.reviseOutput(new OutputUpdateDto("o-x", "p", "https://x.com")));
+        verify(outputMapper, never()).updateById(any(Output.class));
+    }
+
+    @Test
+    void reviseOutput_whenTaskArchived_shouldThrow() {
+        Output existing = makeOutput("o-1", "t-1", "https://old.com", "x");
+        when(outputMapper.selectById("o-1")).thenReturn(existing);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", TaskStates.ARCHIVED));
+
+        assertThrows(BusinessException.class, () ->
+                outputService.reviseOutput(new OutputUpdateDto("o-1", "p", "https://x.com")));
+        verify(outputMapper, never()).updateById(any(Output.class));
+    }
+
+    @Test
+    void reviseOutput_withInvalidUrl_shouldThrow() {
+        Output existing = makeOutput("o-1", "t-1", "https://old.com", "x");
+        when(outputMapper.selectById("o-1")).thenReturn(existing);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", TaskStates.DONE));
+
+        assertThrows(BusinessException.class, () ->
+                outputService.reviseOutput(new OutputUpdateDto("o-1", "p", "ftp://x")));
+        verify(outputMapper, never()).updateById(any(Output.class));
     }
 
     // ─────────────────── 工具方法 ───────────────────

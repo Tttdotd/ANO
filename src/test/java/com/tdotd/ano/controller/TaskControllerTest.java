@@ -21,7 +21,9 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -105,5 +107,49 @@ class TaskControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("任务创建失败"));
+    }
+
+    @Test
+    void patchTask_withValidBody_shouldReturnCode0AndId() throws Exception {
+        when(taskService.reviseTask(any())).thenReturn("t-1");
+
+        mockMvc.perform(patch("/api/v1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("id", "t-1", "title", "标题", "description", "描述"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").value("t-1"));
+    }
+
+    @Test
+    void patchTask_withBlankTitle_shouldReturnCode400() throws Exception {
+        mockMvc.perform(patch("/api/v1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("id", "t-1", "title", "", "description", "d"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void putTaskArchive_withValidBody_shouldReturnCode0AndId() throws Exception {
+        when(taskService.archiveTask(any())).thenReturn("t-1");
+
+        mockMvc.perform(put("/api/v1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("id", "t-1"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").value("t-1"));
+    }
+
+    @Test
+    void putTaskArchive_withoutId_shouldReturnCode400() throws Exception {
+        mockMvc.perform(put("/api/v1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

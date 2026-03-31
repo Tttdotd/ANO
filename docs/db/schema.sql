@@ -45,3 +45,13 @@ CREATE TABLE `ano_output` (
                               PRIMARY KEY (`id`),
                               INDEX `idx_task_id` (`task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务产出物-价值证明';
+
+-- 4. 知识节点表
+CREATE TABLE `ano_knowledge_node` (
+                                      `id` varchar(32) NOT NULL,
+                                      `source_task_id` varchar(32) NOT NULL, -- 必须保留，否则你找不到这张卡片是从哪来的
+                                      `title` varchar(255) NOT NULL,         -- AI生成的标题，方便在列表展示
+                                      `content` text NOT NULL,               -- 知识点核心，用于语义搜索
+                                      `vector` blob NOT NULL,                -- 灵魂字段，没有它做不了向量搜索
+                                      PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

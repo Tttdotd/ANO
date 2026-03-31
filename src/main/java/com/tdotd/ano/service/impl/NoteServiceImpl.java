@@ -2,11 +2,13 @@ package com.tdotd.ano.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tdotd.ano.common.constant.NoteStates;
+import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.converter.NoteConverter;
 import com.tdotd.ano.domain.dto.NoteCreateDto;
 import com.tdotd.ano.domain.dto.NoteUpdateDto;
 import com.tdotd.ano.domain.entity.Note;
+import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.NoteDisplayVo;
 import com.tdotd.ano.mapper.NoteMapper;
 import com.tdotd.ano.service.NoteService;
@@ -34,7 +36,10 @@ public class NoteServiceImpl implements NoteService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public NoteDisplayVo createNote(NoteCreateDto dto) {
-        ownershipGuard.requireOwnedTask(dto.taskId());
+        Task task = ownershipGuard.requireOwnedTask(dto.taskId());
+        if (task.getState() == TaskStates.ARCHIVED) {
+            throw new BusinessException("已归档任务不可创建笔记");
+        }
         long exists = noteMapper.selectCount(new LambdaQueryWrapper<Note>().eq(Note::getTaskId, dto.taskId()));
         if (exists > 0) {
             throw new BusinessException("该任务已存在笔记，请先更新现有笔记");
@@ -65,8 +70,14 @@ public class NoteServiceImpl implements NoteService {
         if (note == null) {
             throw new BusinessException("笔记不存在");
         }
-        ownershipGuard.requireOwnedTask(note.getTaskId());
+        Task task = ownershipGuard.requireOwnedTask(note.getTaskId());
         int st = dto.state();
+        if (task.getState() == TaskStates.ARCHIVED) {
+            if (st == NoteStates.DONE) {
+                throw new BusinessException("已归档任务不可提交笔记");
+            }
+            throw new BusinessException("已归档任务不可修改笔记");
+        }
         if (st != NoteStates.DRAFT && st != NoteStates.DONE) {
             throw new BusinessException("笔记状态仅支持草稿(0)或完成(1)");
         }

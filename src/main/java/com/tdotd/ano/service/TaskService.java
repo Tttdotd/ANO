@@ -1,6 +1,8 @@
 package com.tdotd.ano.service;
 
+import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
+import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 
@@ -37,4 +39,18 @@ public interface TaskService {
      * URL 格式校验由调用方（OutputService）在写库前完成。
      */
     void promoteTaskToDone(String taskId);
+
+    /**
+     * 修改任务标题与描述；已归档任务不可修改。
+     *
+     * @return 任务 id
+     */
+    String reviseTask(TaskUpdateDto dto);
+
+    /**
+     * 将任务归档为知识库终态；已归档时幂等返回任务 id。
+     *
+     * @return 任务 id
+     */
+    String archiveTask(TaskArchiveDto dto);
 }

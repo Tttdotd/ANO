@@ -2,6 +2,7 @@ package com.tdotd.ano.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tdotd.ano.common.constant.NoteStates;
+import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.dto.NoteCreateDto;
 import com.tdotd.ano.domain.dto.NoteUpdateDto;
@@ -42,6 +43,7 @@ class NoteServiceTest {
 
     @Test
     void createNote_shouldInsertEmptyDraftAndPromoteTaskToDoing() {
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.TODO));
         when(noteMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
         doNothing().when(taskService).promoteTaskToDoing("t-1");
 
@@ -57,6 +59,7 @@ class NoteServiceTest {
 
     @Test
     void createNote_whenDuplicateNote_shouldThrow() {
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.TODO));
         when(noteMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         assertThrows(BusinessException.class, () -> noteService.createNote(new NoteCreateDto("t-1")));
@@ -110,6 +113,7 @@ class NoteServiceTest {
     void updateNote_withDraftState_shouldSaveContentAndNotPromoteTask() {
         Note note = makeNote("n-1", "t-1", "");
         when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.DOING));
 
         noteService.updateNote(new NoteUpdateDto("n-1", "草稿内容", NoteStates.DRAFT));
 
@@ -122,6 +126,7 @@ class NoteServiceTest {
     void updateNote_withDoneStateAndValidContent_shouldPromoteTask() {
         Note note = makeNote("n-1", "t-1", "");
         when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.DOING));
         doNothing().when(taskService).promoteTaskToNoted("t-1");
 
         noteService.updateNote(new NoteUpdateDto("n-1", "完整的思考内容", NoteStates.DONE));
@@ -134,6 +139,7 @@ class NoteServiceTest {
     void updateNote_withIllegalState_shouldThrow() {
         Note note = makeNote("n-1", "t-1", "");
         when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.DOING));
 
         assertThrows(BusinessException.class, () ->
                 noteService.updateNote(new NoteUpdateDto("n-1", "x", 2)));
@@ -142,9 +148,35 @@ class NoteServiceTest {
     }
 
     @Test
+    void updateNote_whenTaskArchivedAndSubmitDone_shouldThrow() {
+        Note note = makeNote("n-1", "t-1", "");
+        when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.ARCHIVED));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                noteService.updateNote(new NoteUpdateDto("n-1", "有效内容", NoteStates.DONE)));
+        assertEquals("已归档任务不可提交笔记", ex.getMessage());
+        verify(noteMapper, never()).updateById(any(Note.class));
+        verify(taskService, never()).promoteTaskToNoted(any(String.class));
+    }
+
+    @Test
+    void updateNote_whenTaskArchivedAndDraft_shouldThrow() {
+        Note note = makeNote("n-1", "t-1", "");
+        when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.ARCHIVED));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                noteService.updateNote(new NoteUpdateDto("n-1", "草稿", NoteStates.DRAFT)));
+        assertEquals("已归档任务不可修改笔记", ex.getMessage());
+        verify(noteMapper, never()).updateById(any(Note.class));
+    }
+
+    @Test
     void updateNote_withDoneStateButBlankContent_shouldThrow() {
         Note note = makeNote("n-1", "t-1", "");
         when(noteMapper.selectById("n-1")).thenReturn(note);
+        when(ownershipGuard.requireOwnedTask("t-1")).thenReturn(makeTask("t-1", "u-1", TaskStates.DOING));
 
         assertThrows(BusinessException.class, () ->
                 noteService.updateNote(new NoteUpdateDto("n-1", "   ", NoteStates.DONE)));
@@ -160,10 +192,11 @@ class NoteServiceTest {
 
     // ─────────────────── 工具方法 ───────────────────
 
-    private Task makeTask(String id, String userId) {
+    private Task makeTask(String id, String userId, int state) {
         Task t = new Task();
         t.setId(id);
         t.setUserId(userId);
+        t.setState(state);
         return t;
     }
 

@@ -3,17 +3,23 @@ package com.tdotd.ano.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
+import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.converter.TaskConverter;
+import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
+import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
+import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -21,10 +27,15 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskMapper taskMapper;
     private final UserIdProvider userIdProvider;
+    private final TaskOwnershipGuard ownershipGuard;
 
-    public TaskServiceImpl(TaskMapper taskMapper, UserIdProvider userIdProvider) {
+    public TaskServiceImpl(
+            TaskMapper taskMapper,
+            UserIdProvider userIdProvider,
+            TaskOwnershipGuard ownershipGuard) {
         this.taskMapper = taskMapper;
         this.userIdProvider = userIdProvider;
+        this.ownershipGuard = ownershipGuard;
     }
 
     @Override
@@ -92,5 +103,31 @@ public class TaskServiceImpl implements TaskService {
         taskMapper.update(update, new LambdaUpdateWrapper<Task>()
                 .eq(Task::getId, taskId)
                 .eq(Task::getState, TaskStates.NOTED));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String reviseTask(TaskUpdateDto dto) {
+        Task task = ownershipGuard.requireOwnedTask(dto.id());
+        if (task.getState() == TaskStates.ARCHIVED) {
+            throw new BusinessException("已归档任务不可修改");
+        }
+        task.setTitle(dto.title());
+        task.setDescription(dto.description());
+        taskMapper.updateById(task);
+        return task.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String archiveTask(TaskArchiveDto dto) {
+        Task task = ownershipGuard.requireOwnedTask(dto.id());
+        if (task.getState() == TaskStates.ARCHIVED) {
+            return task.getId();
+        }
+        task.setState(TaskStates.ARCHIVED);
+        task.setArchivedTime(LocalDateTime.now());
+        taskMapper.updateById(task);
+        return task.getId();
     }
 }
