@@ -7,6 +7,7 @@ import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
 import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.entity.Task;
+import com.tdotd.ano.domain.event.TaskArchivedEvent;
 import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
@@ -18,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +41,9 @@ class TaskServiceTest {
 
     @Mock
     private TaskOwnershipGuard ownershipGuard;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -162,6 +167,9 @@ class TaskServiceTest {
         verify(taskMapper).updateById(captor.capture());
         assertEquals(TaskStates.ARCHIVED, captor.getValue().getState());
         assertNotNull(captor.getValue().getArchivedTime());
+        ArgumentCaptor<TaskArchivedEvent> eventCaptor = ArgumentCaptor.forClass(TaskArchivedEvent.class);
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals("t-1", eventCaptor.getValue().taskId());
     }
 
     @Test
@@ -175,5 +183,6 @@ class TaskServiceTest {
 
         assertEquals("t-1", id);
         verify(taskMapper, never()).updateById(any(Task.class));
+        verify(applicationEventPublisher, never()).publishEvent(any());
     }
 }

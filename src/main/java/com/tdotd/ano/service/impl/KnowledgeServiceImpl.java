@@ -47,6 +47,14 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String archiveKnowledge(KnowledgeArchiveRequest request) {
+        KnowledgeNode existing = knowledgeNodeMapper.selectOne(
+                new LambdaQueryWrapper<KnowledgeNode>().eq(KnowledgeNode::getSourceTaskId, request.taskId()));
+        if (existing != null) {
+            log.info("knowledge archive skipped(already exists): taskId={}, nodeId={}",
+                    request.taskId(), existing.getId());
+            return existing.getId();
+        }
+
         Task task = taskMapper.selectById(request.taskId());
         if (task == null) {
             throw new BusinessException("任务不存在，无法归档知识节点");

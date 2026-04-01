@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.converter.TaskConverter;
-import com.tdotd.ano.domain.dto.KnowledgeArchiveRequest;
 import com.tdotd.ano.domain.dto.TaskArchiveDto;
+import com.tdotd.ano.domain.event.TaskArchivedEvent;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
 import com.tdotd.ano.domain.dto.TaskUpdateDto;
 import com.tdotd.ano.domain.entity.Task;
@@ -14,10 +14,10 @@ import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
-import com.tdotd.ano.service.KnowledgeService;
 import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,17 +32,17 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final UserIdProvider userIdProvider;
     private final TaskOwnershipGuard ownershipGuard;
-    private final KnowledgeService knowledgeService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public TaskServiceImpl(
             TaskMapper taskMapper,
             UserIdProvider userIdProvider,
             TaskOwnershipGuard ownershipGuard,
-            KnowledgeService knowledgeService) {
+            ApplicationEventPublisher applicationEventPublisher) {
         this.taskMapper = taskMapper;
         this.userIdProvider = userIdProvider;
         this.ownershipGuard = ownershipGuard;
-        this.knowledgeService = knowledgeService;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -139,9 +139,9 @@ public class TaskServiceImpl implements TaskService {
         task.setState(TaskStates.ARCHIVED);
         task.setArchivedTime(LocalDateTime.now());
         taskMapper.updateById(task);
-        String knowledgeNodeId = knowledgeService.archiveKnowledge(new KnowledgeArchiveRequest(task.getId()));
-        log.info("knowledge archive pipeline done: taskId={}, knowledgeNodeId={}", task.getId(), knowledgeNodeId);
-        log.info("task archived: taskId={}", task.getId());
+        // 仅发布事件：TransactionalEventListener(AFTER_COMMIT) 在事务提交后才触发，再经 @Async 执行知识归档，HTTP 无需等待大模型。
+        applicationEventPublisher.publishEvent(new TaskArchivedEvent(task.getId()));
+        log.info("task archived, knowledge pipeline scheduled: taskId={}", task.getId());
         return task.getId();
     }
 }
