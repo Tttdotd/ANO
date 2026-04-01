@@ -1,6 +1,7 @@
 package com.tdotd.ano.service;
 
 import com.tdotd.ano.common.constant.KnowledgeIndexConstants;
+import com.tdotd.ano.config.KnowledgeVectorProperties;
 import com.tdotd.ano.domain.entity.KnowledgeNode;
 import com.tdotd.ano.mapper.KnowledgeNodeMapper;
 import io.lettuce.core.api.async.RedisAsyncCommands;
@@ -37,12 +38,15 @@ public class KnowledgeIndexBootstrapService {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final KnowledgeNodeMapper knowledgeNodeMapper;
+    private final KnowledgeVectorProperties knowledgeVectorProperties;
 
     public KnowledgeIndexBootstrapService(
             StringRedisTemplate stringRedisTemplate,
-            KnowledgeNodeMapper knowledgeNodeMapper) {
+            KnowledgeNodeMapper knowledgeNodeMapper,
+            KnowledgeVectorProperties knowledgeVectorProperties) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.knowledgeNodeMapper = knowledgeNodeMapper;
+        this.knowledgeVectorProperties = knowledgeVectorProperties;
     }
 
     /**
@@ -90,7 +94,7 @@ public class KnowledgeIndexBootstrapService {
                 KnowledgeIndexConstants.FIELD_CONTENT, REDISEARCH_TEXT,
                 KnowledgeIndexConstants.FIELD_VECTOR, REDISEARCH_VECTOR, KnowledgeIndexConstants.VECTOR_ALGORITHM, HNSW_ARGUMENT_COUNT,
                 REDISEARCH_TYPE, KnowledgeIndexConstants.VECTOR_TYPE,
-                REDISEARCH_DIM, String.valueOf(KnowledgeIndexConstants.VECTOR_DIM),
+                REDISEARCH_DIM, String.valueOf(knowledgeVectorProperties.resolvedDimension()),
                 REDISEARCH_DISTANCE_METRIC, KnowledgeIndexConstants.VECTOR_DISTANCE_METRIC
         );
     }

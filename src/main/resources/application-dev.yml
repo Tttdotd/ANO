@@ -1,0 +1,12 @@
+# application-dev.yml
+ai:
+  openai:
+    # 填入你真实的百炼 API Key
+    api-key: sk-4125d5e8abe044cb99bddc05e1d8cede
+    base-url: https://dashscope.aliyuncs.com/compatible-mode
+    chat:
+      options:
+        model: qwen3.5-plus
+    embedding:
+      options:
+        model: text-embedding-v3

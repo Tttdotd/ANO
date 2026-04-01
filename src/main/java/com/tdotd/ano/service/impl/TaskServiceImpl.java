@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.tdotd.ano.common.constant.TaskStates;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.domain.converter.TaskConverter;
+import com.tdotd.ano.domain.dto.KnowledgeArchiveRequest;
 import com.tdotd.ano.domain.dto.TaskArchiveDto;
 import com.tdotd.ano.domain.dto.TaskCreateDto;
 import com.tdotd.ano.domain.dto.TaskUpdateDto;
@@ -13,6 +14,7 @@ import com.tdotd.ano.domain.vo.TaskCreateVo;
 import com.tdotd.ano.domain.vo.TaskDisplayVo;
 import com.tdotd.ano.infrastructure.security.UserIdProvider;
 import com.tdotd.ano.mapper.TaskMapper;
+import com.tdotd.ano.service.KnowledgeService;
 import com.tdotd.ano.service.TaskOwnershipGuard;
 import com.tdotd.ano.service.TaskService;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +32,17 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final UserIdProvider userIdProvider;
     private final TaskOwnershipGuard ownershipGuard;
+    private final KnowledgeService knowledgeService;
 
     public TaskServiceImpl(
             TaskMapper taskMapper,
             UserIdProvider userIdProvider,
-            TaskOwnershipGuard ownershipGuard) {
+            TaskOwnershipGuard ownershipGuard,
+            KnowledgeService knowledgeService) {
         this.taskMapper = taskMapper;
         this.userIdProvider = userIdProvider;
         this.ownershipGuard = ownershipGuard;
+        this.knowledgeService = knowledgeService;
     }
 
     @Override
@@ -134,6 +139,8 @@ public class TaskServiceImpl implements TaskService {
         task.setState(TaskStates.ARCHIVED);
         task.setArchivedTime(LocalDateTime.now());
         taskMapper.updateById(task);
+        String knowledgeNodeId = knowledgeService.archiveKnowledge(new KnowledgeArchiveRequest(task.getId()));
+        log.info("knowledge archive pipeline done: taskId={}, knowledgeNodeId={}", task.getId(), knowledgeNodeId);
         log.info("task archived: taskId={}", task.getId());
         return task.getId();
     }

@@ -1,6 +1,8 @@
 spring:
   application:
     name: ANO
+  profiles:
+    active: dev # 激活 application-dev.yml文件
   datasource:
     url: jdbc:mysql://localhost:3306/ano_pkm?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
@@ -13,6 +15,16 @@ spring:
       lettuce:
         pool:
           max-active: 8
+  ai:
+    openai:
+      api-key: ${ai.openai.api-key}
+      base-url: ${ai.openai.base-url}
+      chat:
+        options:
+          model: ${ai.openai.chat.options.model}
+      embedding:
+        options:
+          model: ${ai.openai.embedding.options.model}
 
 mybatis-plus:
   configuration:
@@ -28,3 +40,6 @@ mybatis-plus:
 ano:
   security:
     dev-user-id: "1"
+  knowledge:
+    # 须与 Embedding 输出维数、RediSearch 索引 DIM 一致；百炼 text-embedding-v3 多为 1024
+    vector-dimension: 1024

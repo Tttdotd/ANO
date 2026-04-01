@@ -10,7 +10,10 @@ public final class KnowledgeIndexConstants {
     public static final String FIELD_CONTENT = "content";
     public static final String FIELD_VECTOR = "vector";
 
-    public static final int VECTOR_DIM = 1536;
+    /**
+     * 文档参考；实际以 {@code ano.knowledge.vector-dimension} 与 Embedding 模型为准。
+     */
+    public static final int VECTOR_DIM_REFERENCE = 1024;
     public static final String VECTOR_DISTANCE_METRIC = "COSINE";
     public static final String VECTOR_ALGORITHM = "HNSW";
     public static final String VECTOR_TYPE = "FLOAT32";
