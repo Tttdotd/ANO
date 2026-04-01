@@ -43,3 +43,6 @@ ano:
   knowledge:
     # 须与 Embedding 输出维数、RediSearch 索引 DIM 一致；百炼 text-embedding-v3 多为 1024
     vector-dimension: 1024
+    relation-top-k: 10
+    relation-enabled: true
+    emergence-enabled: true

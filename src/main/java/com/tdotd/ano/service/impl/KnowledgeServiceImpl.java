@@ -1,10 +1,12 @@
 package com.tdotd.ano.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.tdotd.ano.common.constant.KnowledgeNodeTypeConstants;
 import com.tdotd.ano.common.exception.BusinessException;
 import com.tdotd.ano.common.utils.VectorUtils;
 import com.tdotd.ano.domain.dto.KnowledgeArchiveRequest;
 import com.tdotd.ano.domain.entity.KnowledgeNode;
+import com.tdotd.ano.domain.event.KnowledgeExtractedEvent;
 import com.tdotd.ano.domain.entity.Note;
 import com.tdotd.ano.domain.entity.Task;
 import com.tdotd.ano.infrastructure.ai.KnowledgeRefiner;
@@ -15,6 +17,7 @@ import com.tdotd.ano.mapper.NoteMapper;
 import com.tdotd.ano.mapper.TaskMapper;
 import com.tdotd.ano.service.KnowledgeService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final KnowledgeRefiner knowledgeRefiner;
     private final VectorService vectorService;
     private final RedisVectorRepository redisVectorRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public KnowledgeServiceImpl(
             TaskMapper taskMapper,
@@ -35,20 +39,24 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             KnowledgeNodeMapper knowledgeNodeMapper,
             KnowledgeRefiner knowledgeRefiner,
             VectorService vectorService,
-            RedisVectorRepository redisVectorRepository) {
+            RedisVectorRepository redisVectorRepository,
+            ApplicationEventPublisher applicationEventPublisher) {
         this.taskMapper = taskMapper;
         this.noteMapper = noteMapper;
         this.knowledgeNodeMapper = knowledgeNodeMapper;
         this.knowledgeRefiner = knowledgeRefiner;
         this.vectorService = vectorService;
         this.redisVectorRepository = redisVectorRepository;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String archiveKnowledge(KnowledgeArchiveRequest request) {
         KnowledgeNode existing = knowledgeNodeMapper.selectOne(
-                new LambdaQueryWrapper<KnowledgeNode>().eq(KnowledgeNode::getSourceTaskId, request.taskId()));
+                new LambdaQueryWrapper<KnowledgeNode>()
+                        .eq(KnowledgeNode::getSourceTaskId, request.taskId())
+                        .eq(KnowledgeNode::getNodeType, KnowledgeNodeTypeConstants.TASK_EXTRACTED));
         if (existing != null) {
             log.info("knowledge archive skipped(already exists): taskId={}, nodeId={}",
                     request.taskId(), existing.getId());
@@ -69,12 +77,14 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
         KnowledgeNode node = new KnowledgeNode();
         node.setSourceTaskId(request.taskId());
+        node.setNodeType(KnowledgeNodeTypeConstants.TASK_EXTRACTED);
         node.setTitle(task.getTitle());
         node.setContent(refinedContent);
         node.setVector(VectorUtils.toBuffer(vector));
 
         knowledgeNodeMapper.insert(node);
         redisVectorRepository.save(node);
+        applicationEventPublisher.publishEvent(new KnowledgeExtractedEvent(node.getId()));
         log.info("knowledge archived: taskId={}, nodeId={}", request.taskId(), node.getId());
         return node.getId();
     }

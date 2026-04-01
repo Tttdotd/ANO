@@ -49,9 +49,39 @@ CREATE TABLE `ano_output` (
 -- 4. 知识节点表
 CREATE TABLE `ano_knowledge_node` (
                                       `id` varchar(32) NOT NULL,
-                                      `source_task_id` varchar(32) NOT NULL, -- 必须保留，否则你找不到这张卡片是从哪来的
+                                      `source_task_id` varchar(32) DEFAULT NULL COMMENT '来源任务ID，任务提炼节点必填，涌现节点可空',
+                                      `node_type` varchar(32) NOT NULL DEFAULT 'TASK_EXTRACTED' COMMENT '节点类型: TASK_EXTRACTED/EMERGENT',
                                       `title` varchar(255) NOT NULL,         -- AI生成的标题，方便在列表展示
                                       `content` text NOT NULL,               -- 知识点核心，用于语义搜索
                                       `vector` blob NOT NULL,                -- 灵魂字段，没有它做不了向量搜索
-                                      PRIMARY KEY (`id`)
+                                      PRIMARY KEY (`id`),
+                                      INDEX `idx_source_task_id` (`source_task_id`),
+                                      INDEX `idx_node_type` (`node_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. 知识关系边表
+CREATE TABLE `ano_knowledge_edge` (
+                                      `id` varchar(32) NOT NULL COMMENT '关系边ID',
+                                      `from_node_id` varchar(32) NOT NULL COMMENT '起点知识节点ID',
+                                      `to_node_id` varchar(32) NOT NULL COMMENT '终点知识节点ID',
+                                      `relation_type` varchar(32) NOT NULL COMMENT '关系类型: SUPPORTS/CONTRADICTS/SIMILAR_TO/CAUSES/PREREQUISITE_OF/TRADEOFF_WITH',
+                                      `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                      PRIMARY KEY (`id`),
+                                      INDEX `idx_from_node` (`from_node_id`),
+                                      INDEX `idx_to_node` (`to_node_id`),
+                                      INDEX `idx_relation_type` (`relation_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识关系边';
+
+-- 6. 知识涌现血缘表
+CREATE TABLE `ano_knowledge_lineage` (
+                                         `id` varchar(32) NOT NULL COMMENT '血缘记录ID',
+                                         `child_node_id` varchar(32) NOT NULL COMMENT '涌现节点ID',
+                                         `parent_a_id` varchar(32) NOT NULL COMMENT '父知识节点A',
+                                         `parent_b_id` varchar(32) NOT NULL COMMENT '父知识节点B',
+                                         `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                         PRIMARY KEY (`id`),
+                                         INDEX `idx_child_node` (`child_node_id`),
+                                         INDEX `idx_parent_a` (`parent_a_id`),
+                                         INDEX `idx_parent_b` (`parent_b_id`),
+                                         UNIQUE INDEX `uk_child_pair` (`child_node_id`, `parent_a_id`, `parent_b_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识涌现血缘关系';

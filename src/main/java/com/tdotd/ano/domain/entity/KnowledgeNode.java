@@ -16,6 +16,9 @@ public class KnowledgeNode {
     @TableField("source_task_id")
     private String sourceTaskId;
 
+    @TableField("node_type")
+    private String nodeType;
+
     private String title;
 
     private String content;
