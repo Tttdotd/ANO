@@ -1,7 +1,9 @@
 package com.tdotd.ano.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.tdotd.ano.common.utils.VectorUtils;
 import com.tdotd.ano.config.KnowledgeMiningProperties;
+import com.tdotd.ano.config.KnowledgeVectorProperties;
 import com.tdotd.ano.domain.entity.KnowledgeNode;
 import com.tdotd.ano.infrastructure.ai.KnowledgeRelationJudge;
 import com.tdotd.ano.infrastructure.ai.VectorService;
@@ -28,6 +30,7 @@ public class RelationDiscoveryServiceImpl implements RelationDiscoveryService {
     private final KnowledgeEdgeService knowledgeEdgeService;
     private final KnowledgeEmergenceService knowledgeEmergenceService;
     private final KnowledgeMiningProperties knowledgeMiningProperties;
+    private final KnowledgeVectorProperties knowledgeVectorProperties;
 
     public RelationDiscoveryServiceImpl(
             KnowledgeNodeMapper knowledgeNodeMapper,
@@ -36,7 +39,8 @@ public class RelationDiscoveryServiceImpl implements RelationDiscoveryService {
             KnowledgeRelationJudge knowledgeRelationJudge,
             KnowledgeEdgeService knowledgeEdgeService,
             KnowledgeEmergenceService knowledgeEmergenceService,
-            KnowledgeMiningProperties knowledgeMiningProperties) {
+            KnowledgeMiningProperties knowledgeMiningProperties,
+            KnowledgeVectorProperties knowledgeVectorProperties) {
         this.knowledgeNodeMapper = knowledgeNodeMapper;
         this.vectorSearchRepository = vectorSearchRepository;
         this.vectorService = vectorService;
@@ -44,6 +48,7 @@ public class RelationDiscoveryServiceImpl implements RelationDiscoveryService {
         this.knowledgeEdgeService = knowledgeEdgeService;
         this.knowledgeEmergenceService = knowledgeEmergenceService;
         this.knowledgeMiningProperties = knowledgeMiningProperties;
+        this.knowledgeVectorProperties = knowledgeVectorProperties;
     }
 
     @Override
@@ -56,8 +61,14 @@ public class RelationDiscoveryServiceImpl implements RelationDiscoveryService {
             return;
         }
 
+        float[] queryVector = VectorUtils.fromBuffer(newNode.getVector());
+        int expectedDim = knowledgeVectorProperties.resolvedDimension();
+        if (queryVector == null || queryVector.length != expectedDim) {
+            queryVector = vectorService.getVector(newNode.getContent());
+        }
+
         List<String> candidateIds = vectorSearchRepository.searchTopK(
-                vectorService.getVector(newNode.getContent()),
+                queryVector,
                 knowledgeMiningProperties.resolvedRelationTopK() + 1
         ).stream()
                 .filter(id -> !Objects.equals(id, nodeId))

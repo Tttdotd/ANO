@@ -11,9 +11,11 @@ import com.tdotd.ano.infrastructure.persistence.RedisVectorRepository;
 import com.tdotd.ano.mapper.KnowledgeLineageMapper;
 import com.tdotd.ano.mapper.KnowledgeNodeMapper;
 import com.tdotd.ano.service.KnowledgeEmergenceService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class KnowledgeEmergenceServiceImpl implements KnowledgeEmergenceService {
 
@@ -80,6 +82,8 @@ public class KnowledgeEmergenceServiceImpl implements KnowledgeEmergenceService 
         lineage.setParentAId(parentAId);
         lineage.setParentBId(parentBId);
         knowledgeLineageMapper.insert(lineage);
+        log.info("knowledge emerged: emergentNodeId={}, parentAId={}, parentBId={}, relationType={}",
+                emergentNode.getId(), parentAId, parentBId, relationType);
         return emergentNode.getId();
     }
 }

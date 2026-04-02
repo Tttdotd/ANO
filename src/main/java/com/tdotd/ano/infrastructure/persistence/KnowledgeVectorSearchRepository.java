@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @Repository
@@ -41,22 +42,95 @@ public class KnowledgeVectorSearchRepository {
                 "DIALECT", "2",
                 "NOCONTENT"
         );
-        if (!(raw instanceof List<?> list) || list.size() <= 1) {
-            return Collections.emptyList();
-        }
         List<String> nodeIds = new ArrayList<>();
-        for (int i = 1; i < list.size(); i++) {
-            String key = asString(list.get(i));
-            if (key == null || key.isBlank()) {
-                continue;
+        if (raw instanceof List<?> list) {
+            // NOCONTENT（RESP2 常见）：[total_count, doc_id, doc_id, ...]
+            if (list.size() <= 1) {
+                return Collections.emptyList();
             }
-            if (key.startsWith(KnowledgeIndexConstants.KEY_PREFIX)) {
-                nodeIds.add(key.substring(KnowledgeIndexConstants.KEY_PREFIX.length()));
-            } else {
-                nodeIds.add(key);
+            for (int i = 1; i < list.size(); i++) {
+                String nodeId = parseNodeId(list.get(i));
+                if (nodeId != null) {
+                    nodeIds.add(nodeId);
+                }
+            }
+        } else if (raw instanceof Map<?, ?> map) {
+            // RESP3 下 Lettuce 可能会把 FT.SEARCH 结果解析成 MAP（你调试时看到的 LinkedHashMap）
+            Object results = extractResultsFromMap(map);
+            if (!(results instanceof List<?> resultsList)) {
+                return Collections.emptyList();
+            }
+            for (Object item : resultsList) {
+                // 兼容：如果返回的是 [id, score] 这种 pair，优先取第一个元素
+                if (item instanceof List<?> pair && !pair.isEmpty()) {
+                    String nodeId = parseNodeId(pair.get(0));
+                    if (nodeId != null) {
+                        nodeIds.add(nodeId);
+                    }
+                    continue;
+                }
+                if (item instanceof Map<?, ?> itemMap) {
+                    // 你当前调试现象：item 是 LinkedHashMap，包含两个 key/value 对，其中一个 key 应该是 id
+                    Object idValue = extractIdFromItemMap(itemMap);
+                    String nodeId = parseNodeId(idValue);
+                    if (nodeId != null) {
+                        nodeIds.add(nodeId);
+                    }
+                    continue;
+                }
+                String nodeId = parseNodeId(item);
+                if (nodeId != null) {
+                    nodeIds.add(nodeId);
+                }
             }
         }
         return nodeIds;
+    }
+
+    private Object extractIdFromItemMap(Map<?, ?> itemMap) {
+        // 常见 key 形态：id / ID / doc_id（你说应当存在 id）
+        for (Map.Entry<?, ?> entry : itemMap.entrySet()) {
+            String key = asString(entry.getKey());
+            if (key == null) {
+                continue;
+            }
+            if ("id".equalsIgnoreCase(key) || KnowledgeIndexConstants.FIELD_ID.equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        // fallback：若 map 里只有两个字段且没有找到“id”，就退化取第一个 value
+        for (Map.Entry<?, ?> entry : itemMap.entrySet()) {
+            return entry.getValue();
+        }
+        return null;
+    }
+
+    private Object extractResultsFromMap(Map<?, ?> map) {
+        // 常见字段名：results / total_results（key 可能是 byte[]）
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = asString(entry.getKey());
+            if (key != null && "results".equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private String parseNodeId(Object element) {
+        if (element == null) {
+            return null;
+        }
+        if (element instanceof byte[] bytes) {
+            element = new String(bytes, StandardCharsets.UTF_8);
+        }
+        String key = asString(element);
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        if (key.startsWith(KnowledgeIndexConstants.KEY_PREFIX)) {
+            return key.substring(KnowledgeIndexConstants.KEY_PREFIX.length());
+        }
+        return key;
     }
 
     @SuppressWarnings("resource")

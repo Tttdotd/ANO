@@ -36,6 +36,9 @@ public class KnowledgeRelationJudge {
                     .content();
             JsonNode root = objectMapper.readTree(raw == null ? "{}" : raw);
             JsonNode relationTypeNode = root.get("relationType");
+
+            log.info("relation judge result: {}", relationTypeNode);
+
             if (relationTypeNode == null || relationTypeNode.isNull()) {
                 return null;
             }

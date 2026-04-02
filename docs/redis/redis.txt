@@ -1,0 +1,13 @@
+RediSearch索引创建:
+FT.CREATE idx:knowledge
+  ON HASH
+  PREFIX 1 node:
+  SCHEMA
+    id TAG
+    title TEXT WEIGHT 5.0
+    content TEXT
+    vector VECTOR HNSW 6
+      TYPE FLOAT32
+      DIM 1024
+      DISTANCE_METRIC COSINE
+
