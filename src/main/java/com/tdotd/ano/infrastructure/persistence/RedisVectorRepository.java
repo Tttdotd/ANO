@@ -24,7 +24,7 @@ public class RedisVectorRepository {
         String redisKey = KnowledgeArchiveConstants.REDIS_KEY_PREFIX + node.getId();
         Map<String, byte[]> fields = new HashMap<>();
         fields.put(KnowledgeArchiveConstants.REDIS_FIELD_ID, toBytes(node.getId()));
-        fields.put(KnowledgeArchiveConstants.REDIS_FIELD_TITLE, toBytes(node.getTitle()));
+        fields.put(KnowledgeArchiveConstants.REDIS_FIELD_TARGET, toBytes(node.getTarget()));
         fields.put(KnowledgeArchiveConstants.REDIS_FIELD_CONTENT, toBytes(node.getContent()));
         fields.put(KnowledgeArchiveConstants.REDIS_FIELD_VECTOR, node.getVector() == null ? new byte[0] : node.getVector());
         redisTemplate.opsForHash().putAll(redisKey, fields);

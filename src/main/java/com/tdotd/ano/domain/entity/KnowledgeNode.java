@@ -19,7 +19,8 @@ public class KnowledgeNode {
     @TableField("node_type")
     private String nodeType;
 
-    private String title;
+    @TableField("target")
+    private String target;
 
     private String content;
 

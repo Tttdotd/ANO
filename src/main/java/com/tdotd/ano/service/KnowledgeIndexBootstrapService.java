@@ -90,7 +90,7 @@ public class KnowledgeIndexBootstrapService {
                 REDISEARCH_PREFIX, "1", KnowledgeIndexConstants.KEY_PREFIX,
                 REDISEARCH_SCHEMA,
                 KnowledgeIndexConstants.FIELD_ID, REDISEARCH_TAG,
-                KnowledgeIndexConstants.FIELD_TITLE, REDISEARCH_TEXT, REDISEARCH_WEIGHT, KnowledgeIndexConstants.TITLE_WEIGHT,
+                KnowledgeIndexConstants.FIELD_TARGET, REDISEARCH_TEXT, REDISEARCH_WEIGHT, KnowledgeIndexConstants.TITLE_WEIGHT,
                 KnowledgeIndexConstants.FIELD_CONTENT, REDISEARCH_TEXT,
                 KnowledgeIndexConstants.FIELD_VECTOR, REDISEARCH_VECTOR, KnowledgeIndexConstants.VECTOR_ALGORITHM, HNSW_ARGUMENT_COUNT,
                 REDISEARCH_TYPE, KnowledgeIndexConstants.VECTOR_TYPE,
@@ -109,7 +109,7 @@ public class KnowledgeIndexBootstrapService {
             for (KnowledgeNode node : nodes) {
                 byte[] key = toBytes(KnowledgeIndexConstants.KEY_PREFIX + node.getId());
                 connection.hashCommands().hSet(key, toBytes(KnowledgeIndexConstants.FIELD_ID), toBytes(node.getId()));
-                connection.hashCommands().hSet(key, toBytes(KnowledgeIndexConstants.FIELD_TITLE), toBytes(node.getTitle()));
+                connection.hashCommands().hSet(key, toBytes(KnowledgeIndexConstants.FIELD_TARGET), toBytes(node.getTarget()));
                 connection.hashCommands().hSet(key, toBytes(KnowledgeIndexConstants.FIELD_CONTENT), toBytes(node.getContent()));
                 connection.hashCommands().hSet(key, toBytes(KnowledgeIndexConstants.FIELD_VECTOR), node.getVector() == null ? new byte[0] : node.getVector());
             }

@@ -6,7 +6,7 @@ public final class KnowledgeIndexConstants {
     public static final String KEY_PREFIX = "node:";
 
     public static final String FIELD_ID = "id";
-    public static final String FIELD_TITLE = "title";
+    public static final String FIELD_TARGET = "target";
     public static final String FIELD_CONTENT = "content";
     public static final String FIELD_VECTOR = "vector";
 

@@ -51,9 +51,9 @@ CREATE TABLE `ano_knowledge_node` (
                                       `id` varchar(32) NOT NULL,
                                       `source_task_id` varchar(32) DEFAULT NULL COMMENT '来源任务ID，任务提炼节点必填，涌现节点可空',
                                       `node_type` varchar(32) NOT NULL DEFAULT 'TASK_EXTRACTED' COMMENT '节点类型: TASK_EXTRACTED/EMERGENT',
-                                      `title` varchar(255) NOT NULL,         -- AI生成的标题，方便在列表展示
-                                      `content` text NOT NULL,               -- 知识点核心，用于语义搜索
-                                      `vector` blob NOT NULL,                -- 灵魂字段，没有它做不了向量搜索
+                                      `target` varchar(255) NOT NULL COMMENT '知识的对象/目标, 用于说明这是关于什么的知识, 由AI自动判断生成',
+                                      `content` text NOT NULL COMMENT '知识的核心内容, 由AI自动生成',
+                                      `vector` blob NOT NULL COMMENT '知识向量, 用于语义搜索',
                                       PRIMARY KEY (`id`),
                                       INDEX `idx_source_task_id` (`source_task_id`),
                                       INDEX `idx_node_type` (`node_type`)

@@ -78,7 +78,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         KnowledgeNode node = new KnowledgeNode();
         node.setSourceTaskId(request.taskId());
         node.setNodeType(KnowledgeNodeTypeConstants.TASK_EXTRACTED);
-        node.setTitle(task.getTitle());
+        node.setTarget(task.getTitle());
         node.setContent(refinedContent);
         node.setVector(VectorUtils.toBuffer(vector));
 

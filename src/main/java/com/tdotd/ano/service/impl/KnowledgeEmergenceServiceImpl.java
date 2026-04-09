@@ -71,7 +71,7 @@ public class KnowledgeEmergenceServiceImpl implements KnowledgeEmergenceService 
         KnowledgeNode emergentNode = new KnowledgeNode();
         emergentNode.setSourceTaskId(null);
         emergentNode.setNodeType(KnowledgeNodeTypeConstants.EMERGENT);
-        emergentNode.setTitle(title);
+        emergentNode.setTarget(title);
         emergentNode.setContent(content);
         emergentNode.setVector(VectorUtils.toBuffer(vectorService.getVector(content)));
         knowledgeNodeMapper.insert(emergentNode);

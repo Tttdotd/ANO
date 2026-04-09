@@ -4,7 +4,7 @@ public final class KnowledgeArchiveConstants {
 
     public static final String REDIS_KEY_PREFIX = "node:";
     public static final String REDIS_FIELD_ID = "id";
-    public static final String REDIS_FIELD_TITLE = "title";
+    public static final String REDIS_FIELD_TARGET = "target";
     public static final String REDIS_FIELD_CONTENT = "content";
     public static final String REDIS_FIELD_VECTOR = "vector";
 
